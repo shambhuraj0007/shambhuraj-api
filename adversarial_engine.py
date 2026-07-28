@@ -236,14 +236,15 @@ class ROCCurveEvaluator:
 class AdversarialPerturber:
     """
     Applies gradient-optimized perturbations to video frames.
+    Optimized for high-speed CPU execution.
     """
 
     def __init__(
         self,
         target_hash_fn: Optional[Callable] = None,
         epsilon: float = 8.0,
-        steps: int = 40,
-        learning_rate: float = 0.01
+        steps: int = 20,
+        learning_rate: float = 0.05
     ):
         self.hash_fn = target_hash_fn or DifferentiableHashExtractor.combined_hash
         self.epsilon = epsilon / 255.0
@@ -258,8 +259,18 @@ class AdversarialPerturber:
     ) -> Tuple[np.ndarray, Dict]:
         B, H, W, C = frames.shape
 
-        clean = torch.from_numpy(frames).float().to(self.device) / 255.0
-        clean = clean.permute(0, 3, 1, 2)
+        # Downsample tensor during gradient calculations if resolution is large for fast CPU processing
+        max_dim = 480
+        scale_factor = min(1.0, max_dim / max(H, W))
+        target_h, target_w = int(H * scale_factor), int(W * scale_factor)
+
+        clean_orig = torch.from_numpy(frames).float().to(self.device) / 255.0
+        clean_orig = clean_orig.permute(0, 3, 1, 2)  # (B, C, H, W)
+
+        if scale_factor < 1.0:
+            clean = F.interpolate(clean_orig, size=(target_h, target_w), mode='bilinear', align_corners=False)
+        else:
+            clean = clean_orig
 
         if original_hashes is None:
             with torch.no_grad():
@@ -292,9 +303,14 @@ class AdversarialPerturber:
                 best_delta = delta.data.clone()
 
         with torch.no_grad():
-            final = (clean + best_delta).clamp(0.0, 1.0)
+            if scale_factor < 1.0:
+                delta_upsampled = F.interpolate(best_delta, size=(H, W), mode='bilinear', align_corners=False)
+            else:
+                delta_upsampled = best_delta
+
+            final = (clean_orig + delta_upsampled).clamp(0.0, 1.0)
             final_hash = self.hash_fn(final)
-            final_cos_sim = F.cosine_similarity(final_hash, original_hashes, dim=1).mean().item()
+            final_cos_sim = F.cosine_similarity(final_hash, self.hash_fn(clean_orig), dim=1).mean().item()
 
         result = final.permute(0, 2, 3, 1).cpu().numpy()
         result = (result * 255.0).clip(0, 255).astype(np.uint8)
