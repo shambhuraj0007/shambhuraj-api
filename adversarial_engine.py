@@ -318,25 +318,49 @@ class AdversarialPerturber:
         output_path: str,
         batch_size: int = 8
     ) -> Dict:
-        cap = cv2.VideoCapture(input_path)
-        if not cap.isOpened():
-            raise RuntimeError(f"Cannot open video: {input_path}")
-
+        cap = cv2.VideoCapture(input_path, cv2.CAP_FFMPEG)
         fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
         frames = []
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-            frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-        cap.release()
+        if cap.isOpened():
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            cap.release()
+
+        # Robust Fallback: If OpenCV fails to extract frames, use FFmpeg CLI raw pipe
+        if not frames:
+            import subprocess
+            temp_raw = output_path + ".raw.mp4"
+            # Transcode input to standard H.264 MP4 first via FFmpeg
+            subprocess.run([
+                "ffmpeg", "-y", "-i", input_path,
+                "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                "-preset", "ultrafast", temp_raw
+            ], capture_output=True)
+
+            if os.path.exists(temp_raw):
+                cap = cv2.VideoCapture(temp_raw)
+                fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                while True:
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                cap.release()
+                try:
+                    os.remove(temp_raw)
+                except Exception:
+                    pass
 
         if not frames:
-            raise RuntimeError("Video has no readable frames")
+            raise RuntimeError("Video decoding failed: No readable frames found in uploaded file.")
 
         frame_array = np.stack(frames, axis=0)  # (T, H, W, C)
 
