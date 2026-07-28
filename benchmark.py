@@ -170,10 +170,6 @@ class VideoTransformationEngine:
 
         vf_filters = []
 
-        # Mirror (horizontal flip)
-        if config.get("mirror", False):
-            vf_filters.append("hflip")
-
         # Zoom-crop
         if config.get("zoom", False):
             zoom = float(config.get("zoom_factor", 1.05))
@@ -384,10 +380,13 @@ class VideoTransformationEngine:
             op_val = max(0.0, min(1.0, float(overlay_opacity)))
             
             filter_chains.append(
-                f"[{ov_idx}:v]scale=w=main_w:h=main_h,format=rgba,colorchannelmixer=aa={op_val:.2f}[ov_scaled]"
+                f"[{ov_idx}:v]format=rgba,colorchannelmixer=aa={op_val:.2f}[ov_rgba]"
             )
             filter_chains.append(
-                f"[{last_v}][ov_scaled]overlay=0:0:format=auto[v_patched]"
+                f"[ov_rgba][{last_v}]scale2ref[ov_scaled][base_ref]"
+            )
+            filter_chains.append(
+                f"[base_ref][ov_scaled]overlay=0:0[v_patched]"
             )
             last_v = "v_patched"
 
@@ -409,7 +408,7 @@ class VideoTransformationEngine:
             pos_expr = pos_map.get(logo_position, "main_w-overlay_w-10:main_h-overlay_h-10")
 
             filter_chains.append(
-                f"[{logo_idx}:v]scale=w='min(iw,main_w*0.25)':h=-1,format=rgba,colorchannelmixer=aa={logo_op_val:.2f}[logo_scaled]"
+                f"[{logo_idx}:v]scale=w=240:h=-1,format=rgba,colorchannelmixer=aa={logo_op_val:.2f}[logo_scaled]"
             )
             filter_chains.append(
                 f"[{last_v}][logo_scaled]overlay={pos_expr}[v_logo]"

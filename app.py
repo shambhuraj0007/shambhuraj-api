@@ -68,6 +68,49 @@ def upload_file():
             'video_url': url_for('get_upload_file', filename=filename)
         })
 
+@app.route('/api/download_url', methods=['POST'])
+def download_url():
+    data = request.get_json() or {}
+    video_url = data.get('url', '').strip()
+    if not video_url:
+        return jsonify({'error': 'No URL provided'}), 400
+
+    unique_id = uuid.uuid4().hex[:8]
+    filename = f"input_{unique_id}.mp4"
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+    try:
+        import subprocess
+        print(f"[VORTEX LOG] Downloading video from URL: {video_url}")
+        sys.stdout.flush()
+
+        # Run yt-dlp to download Instagram reel / video link
+        cmd = [
+            "yt-dlp",
+            "--no-playlist",
+            "-f", "mp4/bestvideo+bestaudio/best",
+            "-o", filepath,
+            video_url
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+
+        if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
+            raise RuntimeError(f"Download failed: {res.stderr[:300] if res.stderr else 'No output video generated'}")
+
+        print(f"[VORTEX LOG] ✓ Downloaded URL video to: {filepath}")
+        sys.stdout.flush()
+
+        return jsonify({
+            'success': True,
+            'file_id': unique_id,
+            'original_filename': 'instagram_video.mp4',
+            'filename': filename,
+            'video_url': url_for('get_upload_file', filename=filename)
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': f"Failed to download video from URL: {str(e)}"}), 500
+
     return jsonify({'error': 'Unsupported file format'}), 400
 
 
@@ -98,7 +141,6 @@ def process_video():
         "pitch_shift": float(data.get('pitch_shift', 0.0)),
         "eq_filter": bool(data.get('eq_filter', False)),
         # Evasion transforms
-        "mirror": bool(data.get('mirror', False)),
         "zoom": bool(data.get('zoom', False)),
         "zoom_factor": float(data.get('zoom_factor', 1.05)),
         "speed": float(data.get('speed', 1.0)),

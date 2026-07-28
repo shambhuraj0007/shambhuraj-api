@@ -56,6 +56,14 @@
                     </div>
                 </div>
 
+                <div class="url-input-container" style="margin-top: 15px; padding: 12px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 8px;">
+                    <div style="font-size: 12px; color: #a1a1aa; margin-bottom: 6px;">🔗 Or paste Instagram Reel / Post / Video Link:</div>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="urlInput" placeholder="https://www.instagram.com/reel/.../" style="flex: 1; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; font-size: 13px;">
+                        <button type="button" id="fetchUrlBtn" class="btn btn-secondary" style="white-space: nowrap;">📥 Fetch Video</button>
+                    </div>
+                </div>
+
                 <div class="video-preview-wrapper hidden" id="originalPreviewWrapper">
                     <div class="wrapper-header">
                         <span>Original Stream</span>
@@ -133,10 +141,6 @@
                         <div class="group-title">🔀 Geometric & Temporal Transforms</div>
 
                         <div class="form-row toggle-grid">
-                            <div class="toggle-item">
-                                <label class="toggle-switch"><input type="checkbox" id="mirror"><span class="slider"></span></label>
-                                <span class="toggle-label">Mirror (H-Flip)</span>
-                            </div>
                             <div class="toggle-item">
                                 <label class="toggle-switch"><input type="checkbox" id="zoom"><span class="slider"></span></label>
                                 <span class="toggle-label">Zoom-Crop (5%)</span>

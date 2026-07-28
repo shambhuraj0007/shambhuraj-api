@@ -57,6 +57,49 @@ document.addEventListener('DOMContentLoaded', () => {
         if (injectMetadata.checked) stripMetadata.checked = false;
     });
 
+    // Instagram / Video URL Downloader
+    const urlInput = document.getElementById('urlInput');
+    const fetchUrlBtn = document.getElementById('fetchUrlBtn');
+    if (fetchUrlBtn) {
+        fetchUrlBtn.addEventListener('click', () => {
+            const url = urlInput.value.trim();
+            if (!url) {
+                alert('Please enter a valid video link.');
+                return;
+            }
+
+            dropzoneContent.classList.add('hidden');
+            uploadProgressContainer.classList.remove('hidden');
+            uploadStatusText.textContent = 'Downloading video link…';
+
+            fetch('/api/download_url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url })
+            })
+            .then(r => r.json())
+            .then(data => {
+                uploadProgressContainer.classList.add('hidden');
+                dropzoneContent.classList.remove('hidden');
+
+                if (data.success) {
+                    uploadedFilename = data.filename;
+                    originalVideoPlayer.src = data.video_url;
+                    originalPreviewWrapper.classList.remove('hidden');
+                    originalFileInfo.textContent = `${data.original_filename}`;
+                    processBtn.disabled = false;
+                } else {
+                    alert(data.error || 'Failed to download video from URL.');
+                }
+            })
+            .catch(err => {
+                uploadProgressContainer.classList.add('hidden');
+                dropzoneContent.classList.remove('hidden');
+                alert('Error downloading URL: ' + err);
+            });
+        });
+    }
+
     // Output DOM
     const outputPlaceholder = document.getElementById('outputPlaceholder');
     const processingLoader = document.getElementById('processingLoader');
@@ -105,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
             video_codec: 'h265', frame_rate: '24', resolution_scale: 0.85,
             crf: 26, grain_strength: 0.02, audio_codec: 'aac', audio_bitrate: '128k',
             pitch_shift: -1.0, eq_filter: true, speed: 1.04,
-            mirror: true, zoom: true, micro_rotate: false, add_border: true,
+            zoom: true, micro_rotate: false, add_border: true,
             adversarial_enabled: false, adversarial_epsilon: 8, adversarial_steps: 40,
             container: 'mp4', strip_metadata: true, inject_metadata: false
         },
@@ -113,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
             video_codec: 'h265', frame_rate: '24', resolution_scale: 0.8,
             crf: 26, grain_strength: 0.03, audio_codec: 'opus', audio_bitrate: '96k',
             pitch_shift: -2.0, eq_filter: true, speed: 1.04,
-            mirror: true, zoom: true, micro_rotate: true, add_border: true,
+            zoom: true, micro_rotate: true, add_border: true,
             adversarial_enabled: true, adversarial_epsilon: 8, adversarial_steps: 40,
             container: 'mp4', strip_metadata: false, inject_metadata: true
         },
@@ -121,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
             video_codec: 'h264', frame_rate: '24', resolution_scale: 0.75,
             crf: 26, grain_strength: 0.03, audio_codec: 'aac', audio_bitrate: '128k',
             pitch_shift: -2.0, eq_filter: true, speed: 1.04,
-            mirror: true, zoom: true, micro_rotate: true, add_border: true,
+            zoom: true, micro_rotate: true, add_border: true,
             adversarial_enabled: true, adversarial_epsilon: 12.0, adversarial_steps: 20,
             container: 'mp4', strip_metadata: false, inject_metadata: true
         }
@@ -156,7 +199,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('audioCodec').value = p.audio_codec;
         document.getElementById('audioBitrate').value = p.audio_bitrate;
         document.getElementById('eqFilter').checked = p.eq_filter;
-        document.getElementById('mirror').checked = p.mirror;
         document.getElementById('zoom').checked = p.zoom;
         document.getElementById('microRotate').checked = p.micro_rotate;
         document.getElementById('addBorder').checked = p.add_border;
@@ -278,7 +320,6 @@ document.addEventListener('DOMContentLoaded', () => {
             pitch_shift: parseFloat(sliders.pitchShift.el.value),
             eq_filter: document.getElementById('eqFilter').checked,
             // Evasion
-            mirror: document.getElementById('mirror').checked,
             zoom: document.getElementById('zoom').checked,
             zoom_factor: 1.05,
             speed: parseFloat(sliders.speed.el.value),
