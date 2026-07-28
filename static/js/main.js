@@ -30,62 +30,11 @@ document.addEventListener('DOMContentLoaded', () => {
         speed: { el: document.getElementById('speed'), display: document.getElementById('speedVal'), fmt: v => `${parseFloat(v).toFixed(2)}x` },
         adversarialEpsilon: { el: document.getElementById('adversarialEpsilon'), display: document.getElementById('epsVal'), fmt: v => `${parseFloat(v).toFixed(1)}/255` },
         adversarialSteps: { el: document.getElementById('adversarialSteps'), display: document.getElementById('stepsVal'), fmt: v => v },
-        secVideoOpacity: { el: document.getElementById('secVideoOpacity'), display: document.getElementById('secOpacityVal'), fmt: v => `${Math.round(v * 100)}%` },
-        logoOpacity: { el: document.getElementById('logoOpacity'), display: document.getElementById('logoOpacityVal'), fmt: v => `${Math.round(v * 100)}%` },
     };
-
-    // Secondary video and logo file tracking
-    let uploadedSecondaryFilename = null;
-    let uploadedLogoFilename = null;
-
-    const secondaryVideoInput = document.getElementById('secondaryVideoInput');
-    const secVideoStatus = document.getElementById('secVideoStatus');
-    if (secondaryVideoInput) {
-        secondaryVideoInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                const fd = new FormData();
-                fd.append('secondary_video', e.target.files[0]);
-                secVideoStatus.textContent = 'Uploading patch video...';
-                fetch('/api/upload', { method: 'POST', body: fd })
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.success) {
-                            uploadedSecondaryFilename = data.filename;
-                            secVideoStatus.textContent = `✓ ${e.target.files[0].name}`;
-                        } else {
-                            secVideoStatus.textContent = 'Error uploading secondary video';
-                        }
-                    }).catch(() => secVideoStatus.textContent = 'Upload failed');
-            }
-        });
-    }
-
-    const logoInput = document.getElementById('logoInput');
-    const logoStatus = document.getElementById('logoStatus');
-    if (logoInput) {
-        logoInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                const fd = new FormData();
-                fd.append('logo', e.target.files[0]);
-                fd.append('type', 'logo');
-                logoStatus.textContent = 'Uploading logo...';
-                fetch('/api/upload', { method: 'POST', body: fd })
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.success) {
-                            uploadedLogoFilename = data.filename;
-                            logoStatus.textContent = `✓ ${e.target.files[0].name}`;
-                        } else {
-                            logoStatus.textContent = 'Error uploading logo';
-                        }
-                    }).catch(() => logoStatus.textContent = 'Upload failed');
-            }
-        });
-    }
 
     // Bind live slider displays
     Object.values(sliders).forEach(({ el, display, fmt }) => {
-        if (el && display) el.addEventListener('input', () => { display.textContent = fmt(el.value); });
+        el.addEventListener('input', () => { display.textContent = fmt(el.value); });
     });
 
     // Adversarial toggle
@@ -340,12 +289,6 @@ document.addEventListener('DOMContentLoaded', () => {
             adversarial_epsilon: parseFloat(sliders.adversarialEpsilon.el.value),
             adversarial_steps: parseInt(sliders.adversarialSteps.el.value),
             adversarial_batch_size: parseInt(document.getElementById('adversarialBatch').value),
-            // Secondary Video Patch & Logo
-            secondary_video_filename: uploadedSecondaryFilename,
-            secondary_video_opacity: parseFloat(sliders.secVideoOpacity.el.value),
-            logo_filename: uploadedLogoFilename,
-            logo_opacity: parseFloat(sliders.logoOpacity.el.value),
-            logo_position: document.getElementById('logoPosition') ? document.getElementById('logoPosition').value : 'top_right',
             // Metadata
             strip_metadata: document.getElementById('stripMetadata').checked,
             inject_metadata: document.getElementById('injectMetadata').checked,
@@ -366,6 +309,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (data.success) {
                 const res = data.result;
+
+                lastProcessedFilename = res.output_path ? res.output_path.split(/[\\/]/).pop() : null;
 
                 processedVideoPlayer.src = res.processed_video_url;
                 downloadBtn.href = res.download_url;
@@ -409,6 +354,79 @@ document.addEventListener('DOMContentLoaded', () => {
             alert(`Server error: ${err.message}`);
         });
     });
+
+    // ─── Post-Processing Overlay Mix Handlers ───
+    let lastProcessedFilename = null;
+    const overlayOpacity = document.getElementById('overlayOpacity');
+    const ovOpacityVal = document.getElementById('ovOpacityVal');
+    const logoOpacity = document.getElementById('logoOpacity');
+    const logoOpacityVal = document.getElementById('logoOpacityVal');
+    const mixOverlayBtn = document.getElementById('mixOverlayBtn');
+
+    if (overlayOpacity && ovOpacityVal) {
+        overlayOpacity.addEventListener('input', (e) => {
+            ovOpacityVal.textContent = `${e.target.value}%`;
+        });
+    }
+
+    if (logoOpacity && logoOpacityVal) {
+        logoOpacity.addEventListener('input', (e) => {
+            logoOpacityVal.textContent = `${e.target.value}%`;
+        });
+    }
+
+    if (mixOverlayBtn) {
+        mixOverlayBtn.addEventListener('click', () => {
+            if (!lastProcessedFilename) {
+                alert('Please generate the updated video first before applying post-processing overlays.');
+                return;
+            }
+
+            const overlayVidFile = document.getElementById('overlayVideoInput').files[0];
+            const logoImgFile = document.getElementById('logoImageInput').files[0];
+
+            if (!overlayVidFile && !logoImgFile) {
+                alert('Please select a secondary overlay video or a logo watermark image to mix.');
+                return;
+            }
+
+            const fd = new FormData();
+            fd.append('base_filename', lastProcessedFilename);
+            if (overlayVidFile) fd.append('overlay_video', overlayVidFile);
+            fd.append('overlay_opacity', overlayOpacity.value);
+
+            if (logoImgFile) fd.append('logo_image', logoImgFile);
+            fd.append('logo_opacity', logoOpacity.value);
+            fd.append('logo_position', document.getElementById('logoPosition').value);
+
+            mixOverlayBtn.disabled = true;
+            mixOverlayBtn.textContent = 'Blending Overlays…';
+
+            fetch('/api/mix_overlay', {
+                method: 'POST',
+                body: fd
+            })
+            .then(r => r.json())
+            .then(data => {
+                mixOverlayBtn.disabled = false;
+                mixOverlayBtn.innerHTML = '<span>🎛️ Mix Overlays onto Video</span>';
+
+                if (data.success) {
+                    const res = data.result;
+                    processedVideoPlayer.src = res.mixed_video_url;
+                    downloadBtn.href = res.download_url;
+                    alert('✓ Overlay & Watermark compositing completed successfully!');
+                } else {
+                    alert(`Overlay mixing error: ${data.error}`);
+                }
+            })
+            .catch(err => {
+                mixOverlayBtn.disabled = false;
+                mixOverlayBtn.innerHTML = '<span>🎛️ Mix Overlays onto Video</span>';
+                alert(`Mixing failed: ${err.message}`);
+            });
+        });
+    }
 
     // ─── Utilities ───
     function formatBytes(bytes) {

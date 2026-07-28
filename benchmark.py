@@ -5,8 +5,7 @@ Core backend for modular video/audio signal transformations.
 Integrates:
   1. Traditional FFmpeg transforms (re-encode, scale, pitch, crop)
   2. Adversarial frame perturbation (gradient-optimized pixel noise)
-  3. Secondary video opacity patching & Creator Logo overlay
-  4. Metadata injection / compositing
+  3. Metadata injection / compositing
 """
 
 import os
@@ -21,7 +20,7 @@ from adversarial_engine import AdversarialPerturber, DifferentiableHashExtractor
 class VideoTransformationEngine:
     """
     Complete video transformation pipeline combining FFmpeg-based stream
-    processing with optional adversarial frame perturbation and multi-layer overlays.
+    processing with optional adversarial frame perturbation.
     """
 
     def __init__(self, ffmpeg_path: str = "ffmpeg"):
@@ -40,7 +39,18 @@ class VideoTransformationEngine:
         config: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
-        Full transformation pipeline with secondary video patch and logo overlay support.
+        Full transformation pipeline.
+
+        Config keys:
+            Video: video_codec, resolution_scale, crf, frame_rate,
+                   interpolation, grain_strength
+            Audio: audio_codec, audio_bitrate, pitch_shift, eq_filter
+            Evasion: mirror, zoom, zoom_factor, micro_rotate, speed,
+                     add_border
+            Adversarial: adversarial_enabled, adversarial_epsilon,
+                         adversarial_steps, adversarial_batch_size
+            Metadata: strip_metadata, inject_metadata
+            Container: container
         """
         if config is None:
             config = self.get_default_config()
@@ -71,7 +81,7 @@ class VideoTransformationEngine:
                 )
                 working_video = perturbed_video
 
-            # ── Step 2: Video Stream Transforms & Overlays (FFmpeg) ──
+            # ── Step 2: Video Stream Transforms (FFmpeg) ──
             temp_video = str(tmp_path / "processed_video.mp4")
             self._transform_video_stream(working_video, temp_video, config)
 
@@ -110,13 +120,6 @@ class VideoTransformationEngine:
             "frame_rate": 30,
             "interpolation": "bicubic",
             "grain_strength": 0.0,
-            # Secondary Video Patch
-            "secondary_video_path": None,
-            "secondary_video_opacity": 0.3,
-            # Logo Watermark
-            "logo_image_path": None,
-            "logo_opacity": 0.3,
-            "logo_position": "top_right",
             # Audio
             "audio_codec": "aac",
             "audio_bitrate": "128k",
@@ -149,55 +152,13 @@ class VideoTransformationEngine:
         }
         codec = codec_map.get(config.get("video_codec", "h264"), "libx264")
 
-        inputs = ["-i", input_path]
-        filter_complex_parts = []
-        last_stream = "[0:v]"
-        stream_idx = 1
-
-        # Check secondary video patch
-        sec_path = config.get("secondary_video_path")
-        has_sec_video = sec_path and os.path.exists(sec_path)
-        if has_sec_video:
-            inputs.extend(["-i", sec_path])
-            sec_opacity = float(config.get("secondary_video_opacity", 0.3))
-            # Scale secondary video to match primary video dimensions and apply opacity
-            filter_complex_parts.append(
-                f"[{stream_idx}:v]scale=w=iw:h=ih,format=yuva420p,colorchannelmixer=aa={sec_opacity:.2f}[sec_v];"
-                f"{last_stream}[sec_v]overlay=0:0:shortest=1[patched_v]"
-            )
-            last_stream = "[patched_v]"
-            stream_idx += 1
-
-        # Check logo watermark overlay
-        logo_path = config.get("logo_image_path")
-        has_logo = logo_path and os.path.exists(logo_path)
-        if has_logo:
-            inputs.extend(["-i", logo_path])
-            logo_opacity = float(config.get("logo_opacity", 0.3))
-            logo_pos = config.get("logo_position", "top_right")
-
-            pos_map = {
-                "top_left": "15:15",
-                "top_right": "main_w-overlay_w-15:15",
-                "bottom_left": "15:main_h-overlay_h-15",
-                "bottom_right": "main_w-overlay_w-15:main_h-overlay_h-15",
-                "center": "(main_w-overlay_w)/2:(main_h-overlay_h)/2"
-            }
-            overlay_coord = pos_map.get(logo_pos, "main_w-overlay_w-15:15")
-
-            filter_complex_parts.append(
-                f"[{stream_idx}:v]scale=w=iw*0.2:h=-1,format=yuva420p,colorchannelmixer=aa={logo_opacity:.2f}[logo_v];"
-                f"{last_stream}[logo_v]overlay={overlay_coord}[logoed_v]"
-            )
-            last_stream = "[logoed_v]"
-            stream_idx += 1
-
-        # Primary single-stream filter chain (scaling, crop, rotate, noise, speed)
         vf_filters = []
 
+        # Mirror (horizontal flip)
         if config.get("mirror", False):
             vf_filters.append("hflip")
 
+        # Zoom-crop
         if config.get("zoom", False):
             zoom = float(config.get("zoom_factor", 1.05))
             vf_filters.append(
@@ -205,6 +166,7 @@ class VideoTransformationEngine:
                 f"crop=iw/{zoom}:ih/{zoom}"
             )
 
+        # Resolution scaling
         scale = float(config.get("resolution_scale", 1.0))
         if scale < 1.0 and scale > 0.1:
             interpolation = config.get("interpolation", "bicubic")
@@ -212,42 +174,40 @@ class VideoTransformationEngine:
                 f"scale=w='trunc(iw*{scale}/2)*2':h='trunc(ih*{scale}/2)*2':flags={interpolation}"
             )
 
+        # Micro-rotation
         if config.get("micro_rotate", False):
             vf_filters.append("rotate=0.3*PI/180:fillcolor=black")
 
+        # Border overlay (compositing layer)
         if config.get("add_border", False):
             vf_filters.append("drawbox=x=0:y=0:w=iw:h=ih:color=black@0.03:t=3")
 
+        # Grain / Noise overlay
         grain = float(config.get("grain_strength", 0.0))
         if grain > 0.0:
             noise_val = max(1, int(grain * 20))
             vf_filters.append(f"noise=alls={noise_val}:allf=t+u")
 
+        # Speed adjustment (setpts for video)
         speed = float(config.get("speed", 1.0))
         if speed != 1.0 and speed > 0.5 and speed < 2.0:
             vf_filters.append(f"setpts=PTS/{speed}")
 
-        if vf_filters:
-            filter_complex_parts.append(f"{last_stream}{','.join(vf_filters)}[final_v]")
-            last_stream = "[final_v]"
-
-        cmd = [self.ffmpeg, "-y"]
-        cmd.extend(inputs)
-        cmd.extend(["-an"])
-
-        if filter_complex_parts:
-            full_filter = ";".join(filter_complex_parts)
-            cmd.extend(["-filter_complex", full_filter, "-map", last_stream])
-
-        cmd.extend([
+        cmd = [
+            self.ffmpeg, "-y",
+            "-i", input_path,
+            "-an",
             "-c:v", codec,
             "-crf", str(config.get("crf", 24)),
             "-preset", "fast",
             "-pix_fmt", "yuv420p"
-        ])
+        ]
 
         if config.get("frame_rate"):
             cmd.extend(["-r", str(config.get("frame_rate"))])
+
+        if vf_filters:
+            cmd.extend(["-vf", ",".join(vf_filters)])
 
         cmd.append(output_path)
 
@@ -258,6 +218,7 @@ class VideoTransformationEngine:
     def _transform_audio_stream(self, input_path: str, output_path: str, config: Dict[str, Any]):
         af_filters = []
 
+        # Pitch shift via asetrate + atempo (more compatible than rubberband)
         pitch_shift = float(config.get("pitch_shift", 0.0))
         if pitch_shift != 0.0:
             multiplier = 2.0 ** (pitch_shift / 12.0)
@@ -265,10 +226,12 @@ class VideoTransformationEngine:
             tempo_correction = 1.0 / multiplier
             af_filters.append(f"asetrate={new_rate},atempo={tempo_correction:.6f}")
 
+        # Speed adjustment for audio (match video speed)
         speed = float(config.get("speed", 1.0))
         if speed != 1.0 and speed > 0.5 and speed < 2.0:
             af_filters.append(f"atempo={speed}")
 
+        # EQ filter
         if config.get("eq_filter", False):
             af_filters.append(
                 "equalizer=f=1000:t=q:w=1:g=-4,"
@@ -290,6 +253,7 @@ class VideoTransformationEngine:
 
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
+            # Fallback: extract audio without filters
             cmd_fallback = [
                 self.ffmpeg, "-y", "-i", input_path,
                 "-vn", "-ar", "44100", "-ac", "2",
@@ -297,6 +261,7 @@ class VideoTransformationEngine:
             ]
             fallback = subprocess.run(cmd_fallback, capture_output=True, text=True)
             if fallback.returncode != 0:
+                # Video may have no audio — create silent audio
                 cmd_silent = [
                     self.ffmpeg, "-y",
                     "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
@@ -323,6 +288,7 @@ class VideoTransformationEngine:
             "-shortest"
         ]
 
+        # Metadata handling
         if config.get("inject_metadata", False):
             cmd.extend([
                 "-metadata", "creation_time=2026-07-27T14:30:00Z",
@@ -338,3 +304,93 @@ class VideoTransformationEngine:
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             raise RuntimeError(f"FFmpeg Remux Error: {result.stderr[:500]}")
+
+    def mix_video_overlays(
+        self,
+        base_video_path: str,
+        output_path: str,
+        overlay_video_path: Optional[str] = None,
+        overlay_opacity: float = 0.3,
+        logo_image_path: Optional[str] = None,
+        logo_opacity: float = 0.5,
+        logo_position: str = "bottom-right"
+    ) -> Dict[str, Any]:
+        """
+        Blends a secondary video overlay and/or logo watermark onto the base processed video.
+        Opacity ranges from 0.0 (transparent) to 1.0 (fully opaque).
+        """
+        inputs = ["-i", base_video_path]
+        filter_chains = []
+        last_v = "0:v"
+        input_idx = 1
+
+        # 1. Video Overlay Patch
+        if overlay_video_path and os.path.exists(overlay_video_path):
+            inputs.extend(["-i", overlay_video_path])
+            ov_idx = input_idx
+            input_idx += 1
+            op_val = max(0.0, min(1.0, float(overlay_opacity)))
+            
+            filter_chains.append(
+                f"[{ov_idx}:v]scale=w=main_w:h=main_h,format=rgba,colorchannelmixer=aa={op_val:.2f}[ov_scaled]"
+            )
+            filter_chains.append(
+                f"[{last_v}][ov_scaled]overlay=0:0:format=auto[v_patched]"
+            )
+            last_v = "v_patched"
+
+        # 2. Logo Watermark Image Overlay
+        if logo_image_path and os.path.exists(logo_image_path):
+            inputs.extend(["-i", logo_image_path])
+            logo_idx = input_idx
+            input_idx += 1
+            logo_op_val = max(0.0, min(1.0, float(logo_opacity)))
+
+            # Position calculations
+            pos_map = {
+                "top-left": "10:10",
+                "top-right": "main_w-overlay_w-10:10",
+                "bottom-left": "10:main_h-overlay_h-10",
+                "bottom-right": "main_w-overlay_w-10:main_h-overlay_h-10",
+                "center": "(main_w-overlay_w)/2:(main_h-overlay_h)/2"
+            }
+            pos_expr = pos_map.get(logo_position, "main_w-overlay_w-10:main_h-overlay_h-10")
+
+            filter_chains.append(
+                f"[{logo_idx}:v]scale=w='min(iw,main_w*0.25)':h=-1,format=rgba,colorchannelmixer=aa={logo_op_val:.2f}[logo_scaled]"
+            )
+            filter_chains.append(
+                f"[{last_v}][logo_scaled]overlay={pos_expr}[v_logo]"
+            )
+            last_v = "v_logo"
+
+        if not filter_chains:
+            raise ValueError("Neither overlay video nor logo image provided.")
+
+        filter_complex = ";".join(filter_chains)
+
+        cmd = [self.ffmpeg, "-y"]
+        cmd.extend(inputs)
+        cmd.extend([
+            "-filter_complex", filter_complex,
+            "-map", f"[{last_v}]",
+            "-map", "0:a?",
+            "-c:v", "libx264",
+            "-preset", "fast",
+            "-crf", "22",
+            "-c:a", "copy",
+            output_path
+        ])
+
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"FFmpeg Overlay Mixing Error: {result.stderr[:500]}")
+
+        return {
+            "status": "completed",
+            "output_path": output_path,
+            "overlay_video_applied": bool(overlay_video_path and os.path.exists(overlay_video_path)),
+            "logo_applied": bool(logo_image_path and os.path.exists(logo_image_path)),
+            "output_size_bytes": os.path.getsize(output_path) if os.path.exists(output_path) else 0
+        }
+
