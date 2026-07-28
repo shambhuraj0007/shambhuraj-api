@@ -14,9 +14,8 @@ WORKDIR /app
 # Copy requirements first for Docker layer caching
 COPY requirements.txt .
 
-# Install CPU-only PyTorch separately (lighter wheels), then all other dependencies from requirements.txt
-RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch
-RUN pip install --no-cache-dir flask opencv-python-headless numpy gunicorn yt-dlp
+# Install all Python dependencies (no PyTorch needed — pure NumPy engine)
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
 COPY . .

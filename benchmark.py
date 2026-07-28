@@ -26,10 +26,10 @@ class VideoTransformationEngine:
     def __init__(self, ffmpeg_path: str = "ffmpeg"):
         self.ffmpeg = ffmpeg_path
         self.perturber = AdversarialPerturber(
-            target_hash_fn=DifferentiableHashExtractor.combined_hash,
+            target_hash_fn=DifferentiableHashExtractor.combined_hash_np,
             epsilon=8.0,
-            steps=40,
-            learning_rate=0.01
+            steps=5,
+            learning_rate=0.08
         )
 
     def transform(
