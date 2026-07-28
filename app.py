@@ -224,10 +224,16 @@ def mix_overlay():
         logo_image_path = os.path.join(app.config['UPLOAD_FOLDER'], logo_filename)
         logo_file.save(logo_image_path)
     else:
-        # Fallback to default creator logo
-        default_logo = BASE_DIR / "static" / "logo.png"
-        if default_logo.exists():
-            logo_image_path = str(default_logo)
+        # Fallback to default creator logo at templates/logo .png
+        logo_paths = [
+            BASE_DIR / "templates" / "logo .png",
+            BASE_DIR / "templates" / "logo.png",
+            BASE_DIR / "static" / "logo.png"
+        ]
+        for lp in logo_paths:
+            if lp.exists():
+                logo_image_path = str(lp)
+                break
 
     overlay_opacity = float(request.form.get('overlay_opacity', 30)) / 100.0
     logo_opacity = float(request.form.get('logo_opacity', 50)) / 100.0
