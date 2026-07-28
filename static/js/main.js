@@ -116,6 +116,14 @@ document.addEventListener('DOMContentLoaded', () => {
             mirror: true, zoom: true, micro_rotate: true, add_border: true,
             adversarial_enabled: true, adversarial_epsilon: 8, adversarial_steps: 40,
             container: 'mp4', strip_metadata: false, inject_metadata: true
+        },
+        brute_force: {
+            video_codec: 'h265', frame_rate: '24', resolution_scale: 0.75,
+            crf: 28, grain_strength: 0.04, audio_codec: 'opus', audio_bitrate: '96k',
+            pitch_shift: -2.0, eq_filter: true, speed: 1.04,
+            mirror: true, zoom: true, micro_rotate: true, add_border: true,
+            adversarial_enabled: true, adversarial_epsilon: 12.0, adversarial_steps: 60,
+            container: 'mp4', strip_metadata: false, inject_metadata: true
         }
     };
 
@@ -124,6 +132,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (key === 'custom' || !presets[key]) return;
         applyPreset(presets[key]);
     });
+
+    const bruteForceQuickBtn = document.getElementById('bruteForceQuickBtn');
+    if (bruteForceQuickBtn) {
+        bruteForceQuickBtn.addEventListener('click', () => {
+            presetSelect.value = 'brute_force';
+            applyPreset(presets.brute_force);
+        });
+    }
 
     function applyPreset(p) {
         document.getElementById('videoCodec').value = p.video_codec;
