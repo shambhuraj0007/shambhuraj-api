@@ -258,6 +258,57 @@
                         </div>
                     </div>
 
+                    <!-- ── Secondary Video Patch & Creator Logo ── -->
+                    <div class="control-group">
+                        <div class="group-title">🖼️ Secondary Video Patch & Creator Logo</div>
+                        
+                        <!-- Secondary Video Patch -->
+                        <div class="form-row">
+                            <div class="form-field full-width">
+                                <label>Secondary Video Patch (Overlays onto base video)</label>
+                                <input type="file" id="secondaryVideoInput" accept="video/*" style="font-size: 11px;">
+                                <span id="secVideoStatus" class="val-display" style="font-size: 10px; color: var(--accent-cyan);">No secondary video loaded</span>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-field full-width">
+                                <div class="slider-label">
+                                    <span>Secondary Video Opacity</span>
+                                    <span id="secOpacityVal" class="val-display">30%</span>
+                                </div>
+                                <input type="range" id="secVideoOpacity" min="0.05" max="1.0" step="0.05" value="0.30">
+                            </div>
+                        </div>
+
+                        <!-- Creator Logo / Watermark -->
+                        <div class="form-row" style="margin-top: 10px;">
+                            <div class="form-field">
+                                <label>Creator Logo / Watermark Image</label>
+                                <input type="file" id="logoInput" accept="image/*" style="font-size: 11px;">
+                                <span id="logoStatus" class="val-display" style="font-size: 10px; color: var(--accent-emerald);">No logo loaded</span>
+                            </div>
+                            <div class="form-field">
+                                <label for="logoPosition">Logo Position</label>
+                                <select id="logoPosition">
+                                    <option value="top_right" selected>Top Right</option>
+                                    <option value="top_left">Top Left</option>
+                                    <option value="bottom_right">Bottom Right</option>
+                                    <option value="bottom_left">Bottom Left</option>
+                                    <option value="center">Center</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-field full-width">
+                                <div class="slider-label">
+                                    <span>Logo Watermark Opacity</span>
+                                    <span id="logoOpacityVal" class="val-display">30%</span>
+                                </div>
+                                <input type="range" id="logoOpacity" min="0.05" max="1.0" step="0.05" value="0.30">
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- ── Container & Metadata ── -->
                     <div class="control-group">
                         <div class="group-title">⚙️ Container & Metadata</div>

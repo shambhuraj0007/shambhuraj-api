@@ -38,6 +38,12 @@ def allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'svg'}
+
+def allowed_image(filename: str) -> bool:
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -45,17 +51,39 @@ def index():
 
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
-    if 'video' not in request.files:
+    upload_type = request.form.get('type', 'video')
+
+    if upload_type == 'logo':
+        if 'logo' not in request.files:
+            return jsonify({'error': 'No logo file provided'}), 400
+        file = request.files['logo']
+        if file and allowed_image(file.filename):
+            ext = file.filename.rsplit('.', 1)[1].lower()
+            unique_id = uuid.uuid4().hex[:8]
+            filename = f"logo_{unique_id}.{ext}"
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            return jsonify({
+                'success': True,
+                'filename': filename,
+                'url': url_for('get_upload_file', filename=filename)
+            })
+        return jsonify({'error': 'Unsupported image format'}), 400
+
+    # Video upload (primary or secondary)
+    file_key = 'secondary_video' if 'secondary_video' in request.files else 'video'
+    if file_key not in request.files:
         return jsonify({'error': 'No video file provided'}), 400
 
-    file = request.files['video']
+    file = request.files[file_key]
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
 
     if file and allowed_file(file.filename):
         ext = file.filename.rsplit('.', 1)[1].lower()
         unique_id = uuid.uuid4().hex[:8]
-        filename = f"input_{unique_id}.{ext}"
+        prefix = "sec_" if file_key == 'secondary_video' else "input_"
+        filename = f"{prefix}{unique_id}.{ext}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
@@ -82,6 +110,13 @@ def process_video():
     if not os.path.exists(input_path):
         return jsonify({'error': 'Input file not found on server'}), 404
 
+    # Resolve secondary video and logo paths if provided
+    sec_filename = data.get('secondary_video_filename')
+    sec_path = os.path.join(app.config['UPLOAD_FOLDER'], sec_filename) if sec_filename else None
+
+    logo_filename = data.get('logo_filename')
+    logo_path = os.path.join(app.config['UPLOAD_FOLDER'], logo_filename) if logo_filename else None
+
     # Build full config from request data
     config = {
         # Video stream
@@ -91,6 +126,13 @@ def process_video():
         "frame_rate": int(data.get('frame_rate', 30)),
         "interpolation": data.get('interpolation', 'bicubic'),
         "grain_strength": float(data.get('grain_strength', 0.0)),
+        # Secondary video patch
+        "secondary_video_path": sec_path if sec_path and os.path.exists(sec_path) else None,
+        "secondary_video_opacity": float(data.get('secondary_video_opacity', 0.3)),
+        # Logo Watermark
+        "logo_image_path": logo_path if logo_path and os.path.exists(logo_path) else None,
+        "logo_opacity": float(data.get('logo_opacity', 0.3)),
+        "logo_position": data.get('logo_position', 'top_right'),
         # Audio stream
         "audio_codec": data.get('audio_codec', 'aac'),
         "audio_bitrate": data.get('audio_bitrate', '128k'),

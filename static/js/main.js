@@ -30,11 +30,62 @@ document.addEventListener('DOMContentLoaded', () => {
         speed: { el: document.getElementById('speed'), display: document.getElementById('speedVal'), fmt: v => `${parseFloat(v).toFixed(2)}x` },
         adversarialEpsilon: { el: document.getElementById('adversarialEpsilon'), display: document.getElementById('epsVal'), fmt: v => `${parseFloat(v).toFixed(1)}/255` },
         adversarialSteps: { el: document.getElementById('adversarialSteps'), display: document.getElementById('stepsVal'), fmt: v => v },
+        secVideoOpacity: { el: document.getElementById('secVideoOpacity'), display: document.getElementById('secOpacityVal'), fmt: v => `${Math.round(v * 100)}%` },
+        logoOpacity: { el: document.getElementById('logoOpacity'), display: document.getElementById('logoOpacityVal'), fmt: v => `${Math.round(v * 100)}%` },
     };
+
+    // Secondary video and logo file tracking
+    let uploadedSecondaryFilename = null;
+    let uploadedLogoFilename = null;
+
+    const secondaryVideoInput = document.getElementById('secondaryVideoInput');
+    const secVideoStatus = document.getElementById('secVideoStatus');
+    if (secondaryVideoInput) {
+        secondaryVideoInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                const fd = new FormData();
+                fd.append('secondary_video', e.target.files[0]);
+                secVideoStatus.textContent = 'Uploading patch video...';
+                fetch('/api/upload', { method: 'POST', body: fd })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            uploadedSecondaryFilename = data.filename;
+                            secVideoStatus.textContent = `✓ ${e.target.files[0].name}`;
+                        } else {
+                            secVideoStatus.textContent = 'Error uploading secondary video';
+                        }
+                    }).catch(() => secVideoStatus.textContent = 'Upload failed');
+            }
+        });
+    }
+
+    const logoInput = document.getElementById('logoInput');
+    const logoStatus = document.getElementById('logoStatus');
+    if (logoInput) {
+        logoInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                const fd = new FormData();
+                fd.append('logo', e.target.files[0]);
+                fd.append('type', 'logo');
+                logoStatus.textContent = 'Uploading logo...';
+                fetch('/api/upload', { method: 'POST', body: fd })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            uploadedLogoFilename = data.filename;
+                            logoStatus.textContent = `✓ ${e.target.files[0].name}`;
+                        } else {
+                            logoStatus.textContent = 'Error uploading logo';
+                        }
+                    }).catch(() => logoStatus.textContent = 'Upload failed');
+            }
+        });
+    }
 
     // Bind live slider displays
     Object.values(sliders).forEach(({ el, display, fmt }) => {
-        el.addEventListener('input', () => { display.textContent = fmt(el.value); });
+        if (el && display) el.addEventListener('input', () => { display.textContent = fmt(el.value); });
     });
 
     // Adversarial toggle
@@ -289,6 +340,12 @@ document.addEventListener('DOMContentLoaded', () => {
             adversarial_epsilon: parseFloat(sliders.adversarialEpsilon.el.value),
             adversarial_steps: parseInt(sliders.adversarialSteps.el.value),
             adversarial_batch_size: parseInt(document.getElementById('adversarialBatch').value),
+            // Secondary Video Patch & Logo
+            secondary_video_filename: uploadedSecondaryFilename,
+            secondary_video_opacity: parseFloat(sliders.secVideoOpacity.el.value),
+            logo_filename: uploadedLogoFilename,
+            logo_opacity: parseFloat(sliders.logoOpacity.el.value),
+            logo_position: document.getElementById('logoPosition') ? document.getElementById('logoPosition').value : 'top_right',
             // Metadata
             strip_metadata: document.getElementById('stripMetadata').checked,
             inject_metadata: document.getElementById('injectMetadata').checked,
