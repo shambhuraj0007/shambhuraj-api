@@ -70,6 +70,8 @@ class VideoTransformationEngine:
 
             # ── Step 1: Adversarial Frame Perturbation (optional) ──
             if config.get("adversarial_enabled", False):
+                print(f"[VORTEX LOG] -> Step 1/4: Running PyTorch Adversarial Perturbation...")
+                import sys; sys.stdout.flush()
                 self.perturber.epsilon = float(config.get("adversarial_epsilon", 8.0)) / 255.0
                 self.perturber.steps = int(config.get("adversarial_steps", 40))
 
@@ -80,17 +82,31 @@ class VideoTransformationEngine:
                     batch_size=int(config.get("adversarial_batch_size", 4))
                 )
                 working_video = perturbed_video
+                print(f"[VORTEX LOG] -> Step 1/4 Complete! (PSNR: {adversarial_metrics.get('avg_psnr_db')} dB)")
+                import sys; sys.stdout.flush()
 
             # ── Step 2: Video Stream Transforms (FFmpeg) ──
+            print(f"[VORTEX LOG] -> Step 2/4: Running FFmpeg Video Encoding ({config.get('video_codec', 'h264')})...")
+            import sys; sys.stdout.flush()
             temp_video = str(tmp_path / "processed_video.mp4")
             self._transform_video_stream(working_video, temp_video, config)
+            print(f"[VORTEX LOG] -> Step 2/4 Complete!")
+            import sys; sys.stdout.flush()
 
             # ── Step 3: Audio Stream Transforms ──
+            print(f"[VORTEX LOG] -> Step 3/4: Running FFmpeg Audio Filtering ({config.get('audio_codec', 'aac')})...")
+            import sys; sys.stdout.flush()
             temp_audio = str(tmp_path / "processed_audio.wav")
             self._transform_audio_stream(str(input_file), temp_audio, config)
+            print(f"[VORTEX LOG] -> Step 3/4 Complete!")
+            import sys; sys.stdout.flush()
 
             # ── Step 4: Remux with metadata handling ──
+            print(f"[VORTEX LOG] -> Step 4/4: Running Remuxing & Metadata Injection...")
+            import sys; sys.stdout.flush()
             self._remux(temp_video, temp_audio, str(output_file), config)
+            print(f"[VORTEX LOG] -> Step 4/4 Complete!")
+            import sys; sys.stdout.flush()
 
         original_size = input_file.stat().st_size
         output_size = output_file.stat().st_size if output_file.exists() else 0

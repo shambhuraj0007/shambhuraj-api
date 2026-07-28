@@ -119,13 +119,24 @@ def process_video():
     output_filename = f"processed_{Path(filename).stem}.{container_ext}"
     output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
+    print(f"\n[VORTEX LOG] === New Video Processing Request ===")
+    print(f"[VORTEX LOG] Input file: {input_path}")
+    print(f"[VORTEX LOG] Output file: {output_path}")
+    print(f"[VORTEX LOG] Config parameters: {config}")
+    sys.stdout.flush()
+
     try:
         result = engine.transform(input_path, output_path, config)
         result["processed_video_url"] = url_for('get_output_file', filename=output_filename)
         result["download_url"] = url_for('get_output_file', filename=output_filename, as_attachment='true')
+
+        print(f"[VORTEX LOG] ✓ Video Processing Complete! Output saved to: {output_path}\n")
+        sys.stdout.flush()
         return jsonify({"success": True, "result": result})
     except Exception as e:
+        print(f"[VORTEX ERROR] Processing failed with exception: {e}")
         traceback.print_exc()
+        sys.stdout.flush()
         return jsonify({"success": False, "error": str(e)}), 500
 
 
