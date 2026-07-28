@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VORTEX | Adversarial Media Processing Engine</title>
+    <meta name="description" content="Advanced video transformation and perceptual hash robustness benchmarking studio with adversarial perturbation capabilities.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+
+        <!-- Navigation -->
+        <header class="navbar" id="navbar">
+            <div class="logo">
+                <span class="logo-icon">⚡</span>
+                <span class="logo-text">VORTEX <span class="logo-tag">ENGINE</span></span>
+            </div>
+            <div class="nav-right">
+                <div class="header-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">PyTorch + FFmpeg Ready</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Hero -->
+        <section class="hero-section">
+            <h1 class="hero-title">Adversarial Video Transformation Studio</h1>
+            <p class="hero-subtitle">Gradient-optimized frame perturbation + multi-layer signal transforms for perceptual hash robustness benchmarking.</p>
+        </section>
+
+        <!-- Main Layout -->
+        <main class="dashboard-grid">
+
+            <!-- ═══════════ COL 1: INPUT ═══════════ -->
+            <div class="card upload-card">
+                <div class="card-header">
+                    <h2><span class="step-num">1</span> Source Input</h2>
+                </div>
+
+                <div class="dropzone" id="dropzone">
+                    <input type="file" id="videoInput" accept="video/*" hidden>
+                    <div class="dropzone-content" id="dropzoneContent">
+                        <div class="upload-icon">📹</div>
+                        <h3>Drag & drop video</h3>
+                        <p>MP4, MOV, AVI, MKV, WEBM &mdash; up to 500 MB</p>
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('videoInput').click()">Browse Files</button>
+                    </div>
+                    <div class="upload-progress-container hidden" id="uploadProgressContainer">
+                        <div class="spinner"></div>
+                        <p id="uploadStatusText">Uploading…</p>
+                    </div>
+                </div>
+
+                <div class="video-preview-wrapper hidden" id="originalPreviewWrapper">
+                    <div class="wrapper-header">
+                        <span>Original Stream</span>
+                        <span class="badge" id="originalFileInfo"></span>
+                    </div>
+                    <video id="originalVideoPlayer" controls></video>
+                </div>
+            </div>
+
+            <!-- ═══════════ COL 2: CONTROLS ═══════════ -->
+            <div class="card controls-card">
+                <div class="card-header">
+                    <h2><span class="step-num">2</span> Pipeline Configuration</h2>
+                    <div class="preset-selector">
+                        <label for="presetSelect">Preset:</label>
+                        <select id="presetSelect">
+                            <option value="custom" selected>Custom</option>
+                            <option value="standard">Standard Re-encode</option>
+                            <option value="high_compression">High Compression</option>
+                            <option value="evasion_basic">Basic Evasion</option>
+                            <option value="evasion_full">Full Adversarial</option>
+                        </select>
+                    </div>
+                </div>
+
+                <form id="transformForm" class="controls-form">
+
+                    <!-- ── Adversarial Perturbation ── -->
+                    <div class="control-group adversarial-group">
+                        <div class="group-title-row">
+                            <span class="group-title">🧠 Adversarial Perturbation</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="adversarialEnabled">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <p class="group-description">Gradient-optimized pixel noise targeting perceptual hash functions. Imperceptible to human eye, disrupts AI feature embeddings.</p>
+
+                        <div class="adversarial-controls" id="adversarialControls">
+                            <div class="form-row">
+                                <div class="form-field full-width">
+                                    <div class="slider-label">
+                                        <span>Epsilon (Perturbation Strength): 0 = none, 16 = aggressive</span>
+                                        <span id="epsVal" class="val-display mono">8.0/255</span>
+                                    </div>
+                                    <input type="range" id="adversarialEpsilon" min="1" max="16" step="0.5" value="8">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-field full-width">
+                                    <div class="slider-label">
+                                        <span>PGD Optimization Steps</span>
+                                        <span id="stepsVal" class="val-display mono">40</span>
+                                    </div>
+                                    <input type="range" id="adversarialSteps" min="10" max="100" step="5" value="40">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-field">
+                                    <label for="adversarialBatch">Frame Batch Size</label>
+                                    <select id="adversarialBatch">
+                                        <option value="2">2 (Low RAM)</option>
+                                        <option value="4" selected>4 (Default)</option>
+                                        <option value="8">8 (Fast)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── Geometric / Temporal Evasion ── -->
+                    <div class="control-group">
+                        <div class="group-title">🔀 Geometric & Temporal Transforms</div>
+
+                        <div class="form-row toggle-grid">
+                            <div class="toggle-item">
+                                <label class="toggle-switch"><input type="checkbox" id="mirror"><span class="slider"></span></label>
+                                <span class="toggle-label">Mirror (H-Flip)</span>
+                            </div>
+                            <div class="toggle-item">
+                                <label class="toggle-switch"><input type="checkbox" id="zoom"><span class="slider"></span></label>
+                                <span class="toggle-label">Zoom-Crop (5%)</span>
+                            </div>
+                            <div class="toggle-item">
+                                <label class="toggle-switch"><input type="checkbox" id="microRotate"><span class="slider"></span></label>
+                                <span class="toggle-label">Micro Rotation</span>
+                            </div>
+                            <div class="toggle-item">
+                                <label class="toggle-switch"><input type="checkbox" id="addBorder"><span class="slider"></span></label>
+                                <span class="toggle-label">Border Overlay</span>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-field full-width">
+                                <div class="slider-label">
+                                    <span>Playback Speed</span>
+                                    <span id="speedVal" class="val-display">1.00x</span>
+                                </div>
+                                <input type="range" id="speed" min="0.8" max="1.2" step="0.01" value="1.0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── Video Stream ── -->
+                    <div class="control-group">
+                        <div class="group-title">🎬 Video Stream</div>
+
+                        <div class="form-row">
+                            <div class="form-field">
+                                <label for="videoCodec">Codec</label>
+                                <select id="videoCodec">
+                                    <option value="h264" selected>H.264 (AVC)</option>
+                                    <option value="h265">H.265 (HEVC)</option>
+                                    <option value="av1">AV1</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label for="frameRate">Frame Rate</label>
+                                <select id="frameRate">
+                                    <option value="24">24 FPS</option>
+                                    <option value="25">25 FPS</option>
+                                    <option value="30" selected>30 FPS</option>
+                                    <option value="60">60 FPS</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-field full-width">
+                                <div class="slider-label">
+                                    <span>Resolution Scale</span>
+                                    <span id="resScaleVal" class="val-display">85%</span>
+                                </div>
+                                <input type="range" id="resolutionScale" min="0.5" max="1.0" step="0.05" value="0.85">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-field full-width">
+                                <div class="slider-label">
+                                    <span>CRF Quality (18=Lossless · 35=High Comp)</span>
+                                    <span id="crfVal" class="val-display">24</span>
+                                </div>
+                                <input type="range" id="crf" min="18" max="35" step="1" value="24">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-field full-width">
+                                <div class="slider-label">
+                                    <span>Noise / Grain Overlay</span>
+                                    <span id="grainVal" class="val-display">0.0%</span>
+                                </div>
+                                <input type="range" id="grainStrength" min="0.0" max="0.1" step="0.01" value="0.0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── Audio Stream ── -->
+                    <div class="control-group">
+                        <div class="group-title">🎵 Audio Stream</div>
+
+                        <div class="form-row">
+                            <div class="form-field">
+                                <label for="audioCodec">Codec</label>
+                                <select id="audioCodec">
+                                    <option value="aac" selected>AAC</option>
+                                    <option value="mp3">MP3</option>
+                                    <option value="opus">Opus</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label for="audioBitrate">Bitrate</label>
+                                <select id="audioBitrate">
+                                    <option value="96k">96 kbps</option>
+                                    <option value="128k" selected>128 kbps</option>
+                                    <option value="192k">192 kbps</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-field full-width">
+                                <div class="slider-label">
+                                    <span>Pitch Shift (Semitones)</span>
+                                    <span id="pitchVal" class="val-display">0.0 st</span>
+                                </div>
+                                <input type="range" id="pitchShift" min="-4" max="4" step="0.5" value="0">
+                            </div>
+                        </div>
+
+                        <div class="form-row toggle-grid">
+                            <div class="toggle-item">
+                                <label class="toggle-switch"><input type="checkbox" id="eqFilter"><span class="slider"></span></label>
+                                <span class="toggle-label">EQ Band Filter (1kHz/3kHz notch)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── Container & Metadata ── -->
+                    <div class="control-group">
+                        <div class="group-title">⚙️ Container & Metadata</div>
+
+                        <div class="form-row">
+                            <div class="form-field">
+                                <label for="container">Container</label>
+                                <select id="container">
+                                    <option value="mp4" selected>.MP4</option>
+                                    <option value="mkv">.MKV</option>
+                                    <option value="webm">.WEBM</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row toggle-grid">
+                            <div class="toggle-item">
+                                <label class="toggle-switch"><input type="checkbox" id="stripMetadata" checked><span class="slider"></span></label>
+                                <span class="toggle-label">Strip Metadata</span>
+                            </div>
+                            <div class="toggle-item">
+                                <label class="toggle-switch"><input type="checkbox" id="injectMetadata"><span class="slider"></span></label>
+                                <span class="toggle-label">Inject Device Metadata</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-large" id="processBtn" disabled>
+                        <span class="btn-icon">⚡</span>
+                        <span id="processBtnText">Process Video</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- ═══════════ COL 3: OUTPUT ═══════════ -->
+            <div class="card output-card">
+                <div class="card-header">
+                    <h2><span class="step-num">3</span> Output & Metrics</h2>
+                </div>
+
+                <div class="output-placeholder" id="outputPlaceholder">
+                    <div class="placeholder-icon">⚙️</div>
+                    <p>Upload a video and configure the pipeline to begin processing.</p>
+                </div>
+
+                <div class="processing-loader hidden" id="processingLoader">
+                    <div class="pulse-ring"></div>
+                    <h3 id="loaderTitle">Processing…</h3>
+                    <p id="loaderSubtitle">Running FFmpeg transformation pipeline.</p>
+                    <div class="loader-steps" id="loaderSteps">
+                        <div class="loader-step" id="stepAdv">🧠 Adversarial perturbation</div>
+                        <div class="loader-step" id="stepVideo">🎬 Video stream re-encoding</div>
+                        <div class="loader-step" id="stepAudio">🎵 Audio pitch & EQ filtering</div>
+                        <div class="loader-step" id="stepRemux">⚙️ Remuxing & metadata</div>
+                    </div>
+                </div>
+
+                <div class="output-content hidden" id="outputContent">
+                    <div class="video-preview-wrapper">
+                        <div class="wrapper-header">
+                            <span>Transformed Output</span>
+                            <span class="badge badge-success" id="outputStatusBadge">Complete</span>
+                        </div>
+                        <video id="processedVideoPlayer" controls></video>
+                    </div>
+
+                    <!-- Adversarial Metrics (shown when adversarial is used) -->
+                    <div class="report-box adversarial-report hidden" id="adversarialReport">
+                        <h4>🧠 Adversarial Perturbation Report</h4>
+                        <div class="report-metrics">
+                            <div class="metric">
+                                <span class="metric-label">PSNR</span>
+                                <span class="metric-value mono" id="advPsnr">—</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Hash Similarity</span>
+                                <span class="metric-value highlight mono" id="advHashSim">—</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">ε (Epsilon)</span>
+                                <span class="metric-value mono" id="advEps">—</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">PGD Steps</span>
+                                <span class="metric-value mono" id="advSteps">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Size / General Metrics -->
+                    <div class="report-box" id="reportBox">
+                        <h4>📊 Processing Report</h4>
+                        <div class="report-metrics">
+                            <div class="metric">
+                                <span class="metric-label">Original Size</span>
+                                <span class="metric-value" id="origSizeVal">—</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Output Size</span>
+                                <span class="metric-value" id="outSizeVal">—</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Size Change</span>
+                                <span class="metric-value highlight" id="reductionVal">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <a id="downloadBtn" href="#" class="btn btn-success btn-large" download>
+                        <span>⬇️ Download Transformed Video</span>
+                    </a>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="footer">
+            <p>VORTEX Adversarial Video Transformation Engine &bull; PyTorch + FFmpeg + Flask</p>
+        </footer>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
