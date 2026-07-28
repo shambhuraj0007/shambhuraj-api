@@ -385,11 +385,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const overlayVidFile = document.getElementById('overlayVideoInput').files[0];
             const logoImgFile = document.getElementById('logoImageInput').files[0];
 
-            if (!overlayVidFile && !logoImgFile) {
-                alert('Please select a secondary overlay video or a logo watermark image to mix.');
-                return;
-            }
-
             const fd = new FormData();
             fd.append('base_filename', lastProcessedFilename);
             if (overlayVidFile) fd.append('overlay_video', overlayVidFile);
