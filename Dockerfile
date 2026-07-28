@@ -11,10 +11,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set working directory
 WORKDIR /app
 
-# Copy requirements and install CPU-only PyTorch + Flask dependencies
+# Copy requirements first for Docker layer caching
 COPY requirements.txt .
+
+# Install CPU-only PyTorch separately (lighter wheels), then all other dependencies from requirements.txt
 RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch
-RUN pip install --no-cache-dir flask opencv-python-headless numpy gunicorn
+RUN pip install --no-cache-dir flask opencv-python-headless numpy gunicorn yt-dlp
 
 # Copy application files
 COPY . .
