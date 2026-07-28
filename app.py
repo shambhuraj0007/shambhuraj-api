@@ -39,6 +39,18 @@ def allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+@app.errorhandler(500)
+def internal_error(e):
+    traceback.print_exc()
+    return jsonify({'success': False, 'error': f'Internal server error: {str(e)}'}), 500
+
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    traceback.print_exc()
+    return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -214,12 +226,16 @@ def process_video():
         result = engine.transform(input_path, output_path, config)
 
         # Auto-apply default logo watermark after every processing run
+        # Use pre-scaled logo_small.png (200px) to avoid OOM on 512MB free tier
         logo_paths = [
-            BASE_DIR / "templates" / "logo .png",
+            BASE_DIR / "static" / "logo_small.png",
+            BASE_DIR / "static" / "logo.png",
             BASE_DIR / "templates" / "logo.png",
-            BASE_DIR / "static" / "logo.png"
+            BASE_DIR / "templates" / "logo .png",
         ]
         default_logo = next((str(p) for p in logo_paths if p.exists()), None)
+        print(f"[VORTEX LOG] Logo path selected: {default_logo}")
+        sys.stdout.flush()
         if default_logo and os.path.exists(output_path):
             logo_output_filename = f"logo_{output_filename}"
             logo_output_path = os.path.join(app.config['OUTPUT_FOLDER'], logo_output_filename)
@@ -228,14 +244,17 @@ def process_video():
                     base_video_path=output_path,
                     output_path=logo_output_path,
                     logo_image_path=default_logo,
-                    logo_opacity=0.35,
+                    logo_opacity=0.75,
                     logo_position='bottom-right'
                 )
                 # Replace output with logo-stamped version
                 os.replace(logo_output_path, output_path)
-                print(f"[VORTEX LOG] ✓ Default logo watermark applied")
+                print(f"[VORTEX LOG] ✓ Default logo watermark applied at 75% opacity")
             except Exception as le:
-                print(f"[VORTEX WARN] Logo watermark failed (skipped): {le}")
+                print(f"[VORTEX WARN] Logo watermark FAILED: {le}")
+            sys.stdout.flush()
+        else:
+            print(f"[VORTEX WARN] No logo file found — checked: {[str(p) for p in logo_paths]}")
             sys.stdout.flush()
 
         result["processed_video_url"] = url_for('get_output_file', filename=output_filename)

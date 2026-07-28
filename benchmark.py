@@ -408,10 +408,11 @@ class VideoTransformationEngine:
             pos_expr = pos_map.get(logo_position, "main_w-overlay_w-10:main_h-overlay_h-10")
 
             filter_chains.append(
-                f"[{logo_idx}:v]scale=w=240:h=-1,format=rgba,colorchannelmixer=aa={logo_op_val:.2f}[logo_scaled]"
+                f"[{logo_idx}:v]scale=160:-1:flags=lanczos,format=rgba,"
+                f"colorchannelmixer=aa={logo_op_val:.2f}[logo_scaled]"
             )
             filter_chains.append(
-                f"[{last_v}][logo_scaled]overlay={pos_expr}[v_logo]"
+                f"[{last_v}][logo_scaled]overlay={pos_expr}:format=auto[v_logo]"
             )
             last_v = "v_logo"
 

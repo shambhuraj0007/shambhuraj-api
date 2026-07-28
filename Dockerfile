@@ -28,4 +28,4 @@ RUN mkdir -p uploads outputs
 EXPOSE 5000 10000
 
 # Run single Gunicorn worker with 2 threads to stay under 512MB RAM on free hosting tiers
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 1 --threads 2 --timeout 300 app:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 1 --threads 2 --timeout 600 --graceful-timeout 30 --keep-alive 5 app:app"]
