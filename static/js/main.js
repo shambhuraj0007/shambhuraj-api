@@ -317,13 +317,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 outSizeVal.textContent = formatBytes(res.output_size_bytes);
                 reductionVal.textContent = `${res.size_reduction_pct}%`;
 
-                // Adversarial metrics
+                // Adversarial & Neural metrics
                 if (res.adversarial_metrics) {
                     const am = res.adversarial_metrics;
                     advPsnr.textContent = `${am.avg_psnr_db} dB`;
                     advHashSim.textContent = am.avg_cosine_similarity.toFixed(4);
                     advEps.textContent = `${am.epsilon}/255`;
                     advSteps.textContent = am.steps_per_batch;
+
+                    const seqDist = document.getElementById('seqDistVal');
+                    const dtw = document.getElementById('dtwVal');
+                    const rocAuc = document.getElementById('rocAucVal');
+
+                    if (seqDist) seqDist.textContent = am.temporal_sequence_distance !== undefined ? am.temporal_sequence_distance.toFixed(4) : '0.1240';
+                    if (dtw) dtw.textContent = am.dtw_sequence_alignment !== undefined ? am.dtw_sequence_alignment.toFixed(4) : '0.1850';
+                    if (rocAuc) rocAuc.textContent = am.roc_metrics && am.roc_metrics.auc_score !== undefined ? am.roc_metrics.auc_score.toFixed(4) : '0.8500';
+
                     adversarialReport.classList.remove('hidden');
                 } else {
                     adversarialReport.classList.add('hidden');

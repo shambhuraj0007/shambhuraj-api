@@ -324,16 +324,16 @@
                         <video id="processedVideoPlayer" controls></video>
                     </div>
 
-                    <!-- Adversarial Metrics (shown when adversarial is used) -->
+                    <!-- Adversarial & Neural Metrics (shown when adversarial is used) -->
                     <div class="report-box adversarial-report hidden" id="adversarialReport">
-                        <h4>🧠 Adversarial Perturbation Report</h4>
+                        <h4>🧠 Adversarial & Neural Feature Metrics</h4>
                         <div class="report-metrics">
                             <div class="metric">
                                 <span class="metric-label">PSNR</span>
                                 <span class="metric-value mono" id="advPsnr">—</span>
                             </div>
                             <div class="metric">
-                                <span class="metric-label">Hash Similarity</span>
+                                <span class="metric-label">Hash Sim</span>
                                 <span class="metric-value highlight mono" id="advHashSim">—</span>
                             </div>
                             <div class="metric">
@@ -343,6 +343,22 @@
                             <div class="metric">
                                 <span class="metric-label">PGD Steps</span>
                                 <span class="metric-value mono" id="advSteps">—</span>
+                            </div>
+                        </div>
+
+                        <h4 style="margin-top: 12px;">⏱️ Temporal Sequence & ROC Metrics</h4>
+                        <div class="report-metrics">
+                            <div class="metric">
+                                <span class="metric-label">Seq Distance</span>
+                                <span class="metric-value mono" id="seqDistVal">—</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">DTW Alignment</span>
+                                <span class="metric-value mono" id="dtwVal">—</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">ROC AUC Score</span>
+                                <span class="metric-value highlight mono" id="rocAucVal">—</span>
                             </div>
                         </div>
                     </div>
