@@ -68,6 +68,29 @@ def upload_file():
             'video_url': url_for('get_upload_file', filename=filename)
         })
 
+def _ensure_yt_dlp():
+    """Install yt-dlp at runtime if missing (handles cached Docker layers)."""
+    try:
+        import yt_dlp  # noqa: F401
+        return True
+    except ImportError:
+        print("[VORTEX LOG] yt-dlp not found — installing at runtime...")
+        sys.stdout.flush()
+        import subprocess
+        try:
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", "--quiet", "yt-dlp"],
+                timeout=60
+            )
+            print("[VORTEX LOG] ✓ yt-dlp installed successfully")
+            sys.stdout.flush()
+            return True
+        except Exception as ie:
+            print(f"[VORTEX WARN] yt-dlp auto-install failed: {ie}")
+            sys.stdout.flush()
+            return False
+
+
 @app.route('/api/download_url', methods=['POST'])
 def download_url():
     data = request.get_json() or {}
@@ -80,26 +103,41 @@ def download_url():
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 
     try:
-        import yt_dlp
-        print(f"[VORTEX LOG] Downloading video via yt-dlp Python API: {video_url}")
-        sys.stdout.flush()
+        # --- Fast path: direct MP4/video URL → requests download ---
+        is_direct = any(video_url.lower().endswith(ext) for ext in ('.mp4', '.mov', '.webm', '.mkv'))
+        if is_direct:
+            import requests as req_lib
+            print(f"[VORTEX LOG] Direct URL download: {video_url}")
+            sys.stdout.flush()
+            with req_lib.get(video_url, stream=True, timeout=60,
+                             headers={'User-Agent': 'Mozilla/5.0'}) as r:
+                r.raise_for_status()
+                with open(filepath, 'wb') as f:
+                    for chunk in r.iter_content(chunk_size=1024 * 1024):
+                        f.write(chunk)
+        else:
+            # --- yt-dlp path for Instagram / YouTube / TikTok etc. ---
+            _ensure_yt_dlp()
+            import yt_dlp
+            print(f"[VORTEX LOG] Downloading via yt-dlp: {video_url}")
+            sys.stdout.flush()
+            ydl_opts = {
+                'format': 'mp4/bestvideo+bestaudio/best',
+                'outtmpl': filepath,
+                'noplaylist': True,
+                'quiet': True,
+                'no_warnings': True,
+                'merge_output_format': 'mp4',
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([video_url])
 
-        ydl_opts = {
-            'format': 'mp4/bestvideo+bestaudio/best',
-            'outtmpl': filepath,
-            'noplaylist': True,
-            'quiet': True,
-            'no_warnings': True,
-            'merge_output_format': 'mp4',
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([video_url])
-
-        # yt-dlp may append .mp4 extension automatically
-        if not os.path.exists(filepath):
-            alt = filepath.replace('.mp4', '') + '.mp4'
-            if os.path.exists(alt):
-                os.rename(alt, filepath)
+            # yt-dlp may suffix .mp4 on the outtmpl path
+            if not os.path.exists(filepath):
+                for candidate in [filepath + '.mp4', filepath.replace('.mp4', '.mp4')]:
+                    if os.path.exists(candidate):
+                        os.rename(candidate, filepath)
+                        break
 
         if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
             raise RuntimeError('Download produced no output file')
