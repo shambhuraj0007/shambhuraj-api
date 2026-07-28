@@ -224,7 +224,7 @@ class AdversarialPerturber:
         self,
         target_hash_fn: Optional[Callable] = None,
         epsilon: float = 8.0,
-        steps: int = 12,
+        steps: int = 5,
         learning_rate: float = 0.08
     ):
         self.hash_fn = target_hash_fn or DifferentiableHashExtractor.combined_hash

@@ -73,7 +73,7 @@ class VideoTransformationEngine:
                 print(f"[VORTEX LOG] -> Step 1/4: Running PyTorch Adversarial Perturbation...")
                 import sys; sys.stdout.flush()
                 self.perturber.epsilon = float(config.get("adversarial_epsilon", 8.0)) / 255.0
-                self.perturber.steps = int(config.get("adversarial_steps", 40))
+                self.perturber.steps = int(config.get("adversarial_steps", 5))
 
                 perturbed_video = str(tmp_path / "adversarial_frames.mp4")
                 adversarial_metrics = self.perturber.perturb_video(
@@ -151,7 +151,7 @@ class VideoTransformationEngine:
             # Adversarial
             "adversarial_enabled": False,
             "adversarial_epsilon": 8.0,
-            "adversarial_steps": 40,
+            "adversarial_steps": 5,
             "adversarial_batch_size": 4,
             # Metadata
             "strip_metadata": True,

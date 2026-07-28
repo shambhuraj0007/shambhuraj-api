@@ -80,38 +80,42 @@ def download_url():
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 
     try:
-        import subprocess
-        print(f"[VORTEX LOG] Downloading video from URL: {video_url}")
+        import yt_dlp
+        print(f"[VORTEX LOG] Downloading video via yt-dlp Python API: {video_url}")
         sys.stdout.flush()
 
-        # Run yt-dlp to download Instagram reel / video link
-        cmd = [
-            "yt-dlp",
-            "--no-playlist",
-            "-f", "mp4/bestvideo+bestaudio/best",
-            "-o", filepath,
-            video_url
-        ]
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        ydl_opts = {
+            'format': 'mp4/bestvideo+bestaudio/best',
+            'outtmpl': filepath,
+            'noplaylist': True,
+            'quiet': True,
+            'no_warnings': True,
+            'merge_output_format': 'mp4',
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([video_url])
+
+        # yt-dlp may append .mp4 extension automatically
+        if not os.path.exists(filepath):
+            alt = filepath.replace('.mp4', '') + '.mp4'
+            if os.path.exists(alt):
+                os.rename(alt, filepath)
 
         if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
-            raise RuntimeError(f"Download failed: {res.stderr[:300] if res.stderr else 'No output video generated'}")
+            raise RuntimeError('Download produced no output file')
 
-        print(f"[VORTEX LOG] ✓ Downloaded URL video to: {filepath}")
+        print(f"[VORTEX LOG] ✓ Downloaded to: {filepath}")
         sys.stdout.flush()
-
         return jsonify({
             'success': True,
             'file_id': unique_id,
-            'original_filename': 'instagram_video.mp4',
+            'original_filename': 'video.mp4',
             'filename': filename,
             'video_url': url_for('get_upload_file', filename=filename)
         })
     except Exception as e:
         traceback.print_exc()
-        return jsonify({'error': f"Failed to download video from URL: {str(e)}"}), 500
-
-    return jsonify({'error': 'Unsupported file format'}), 400
+        return jsonify({'error': f"Failed to download video: {str(e)}"}), 500
 
 
 @app.route('/api/process', methods=['POST'])
@@ -149,7 +153,7 @@ def process_video():
         # Adversarial
         "adversarial_enabled": bool(data.get('adversarial_enabled', False)),
         "adversarial_epsilon": float(data.get('adversarial_epsilon', 8.0)),
-        "adversarial_steps": int(data.get('adversarial_steps', 40)),
+        "adversarial_steps": int(data.get('adversarial_steps', 5)),
         "adversarial_batch_size": int(data.get('adversarial_batch_size', 4)),
         # Metadata
         "strip_metadata": bool(data.get('strip_metadata', True)),
@@ -170,11 +174,44 @@ def process_video():
 
     try:
         result = engine.transform(input_path, output_path, config)
+
+        # Auto-apply default logo watermark after every processing run
+        logo_paths = [
+            BASE_DIR / "templates" / "logo .png",
+            BASE_DIR / "templates" / "logo.png",
+            BASE_DIR / "static" / "logo.png"
+        ]
+        default_logo = next((str(p) for p in logo_paths if p.exists()), None)
+        if default_logo and os.path.exists(output_path):
+            logo_output_filename = f"logo_{output_filename}"
+            logo_output_path = os.path.join(app.config['OUTPUT_FOLDER'], logo_output_filename)
+            try:
+                engine.mix_video_overlays(
+                    base_video_path=output_path,
+                    output_path=logo_output_path,
+                    logo_image_path=default_logo,
+                    logo_opacity=0.35,
+                    logo_position='bottom-right'
+                )
+                # Replace output with logo-stamped version
+                os.replace(logo_output_path, output_path)
+                print(f"[VORTEX LOG] ✓ Default logo watermark applied")
+            except Exception as le:
+                print(f"[VORTEX WARN] Logo watermark failed (skipped): {le}")
+            sys.stdout.flush()
+
         result["processed_video_url"] = url_for('get_output_file', filename=output_filename)
         result["download_url"] = url_for('get_output_file', filename=output_filename, as_attachment='true')
 
         print(f"[VORTEX LOG] ✓ Video Processing Complete! Output saved to: {output_path}\n")
         sys.stdout.flush()
+
+        # Auto-cleanup: delete upload after processing to avoid storing files on server
+        try:
+            os.remove(input_path)
+        except Exception:
+            pass
+
         return jsonify({"success": True, "result": result})
     except Exception as e:
         print(f"[VORTEX ERROR] Processing failed with exception: {e}")
@@ -190,7 +227,20 @@ def get_upload_file(filename):
 
 @app.route('/outputs/<path:filename>')
 def get_output_file(filename):
+    from flask import after_this_request
     as_attachment = request.args.get('as_attachment', 'false').lower() == 'true'
+    filepath = os.path.join(app.config['OUTPUT_FOLDER'], filename)
+
+    if as_attachment:
+        # Delete output file after download to avoid permanent server storage
+        @after_this_request
+        def cleanup(response):
+            try:
+                os.remove(filepath)
+            except Exception:
+                pass
+            return response
+
     return send_from_directory(app.config['OUTPUT_FOLDER'], filename, as_attachment=as_attachment)
 
 

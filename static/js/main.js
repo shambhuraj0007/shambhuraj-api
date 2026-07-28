@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
             crf: 23, grain_strength: 0, audio_codec: 'aac', audio_bitrate: '128k',
             pitch_shift: 0, eq_filter: false, speed: 1.0,
             mirror: false, zoom: false, micro_rotate: false, add_border: false,
-            adversarial_enabled: false, adversarial_epsilon: 8, adversarial_steps: 40,
+            adversarial_enabled: false, adversarial_epsilon: 8, adversarial_steps: 5,
             container: 'mp4', strip_metadata: true, inject_metadata: false
         },
         high_compression: {
@@ -141,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
             crf: 28, grain_strength: 0, audio_codec: 'opus', audio_bitrate: '96k',
             pitch_shift: 0, eq_filter: false, speed: 1.0,
             mirror: false, zoom: false, micro_rotate: false, add_border: false,
-            adversarial_enabled: false, adversarial_epsilon: 8, adversarial_steps: 40,
+            adversarial_enabled: false, adversarial_epsilon: 8, adversarial_steps: 5,
             container: 'mp4', strip_metadata: true, inject_metadata: false
         },
         evasion_basic: {
@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
             crf: 26, grain_strength: 0.02, audio_codec: 'aac', audio_bitrate: '128k',
             pitch_shift: -1.0, eq_filter: true, speed: 1.04,
             zoom: true, micro_rotate: false, add_border: true,
-            adversarial_enabled: false, adversarial_epsilon: 8, adversarial_steps: 40,
+            adversarial_enabled: false, adversarial_epsilon: 8, adversarial_steps: 5,
             container: 'mp4', strip_metadata: true, inject_metadata: false
         },
         evasion_full: {
@@ -157,7 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
             crf: 26, grain_strength: 0.03, audio_codec: 'opus', audio_bitrate: '96k',
             pitch_shift: -2.0, eq_filter: true, speed: 1.04,
             zoom: true, micro_rotate: true, add_border: true,
-            adversarial_enabled: true, adversarial_epsilon: 8, adversarial_steps: 40,
+            adversarial_enabled: true, adversarial_epsilon: 8, adversarial_steps: 5,
             container: 'mp4', strip_metadata: false, inject_metadata: true
         },
         brute_force: {
@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
             crf: 26, grain_strength: 0.03, audio_codec: 'aac', audio_bitrate: '128k',
             pitch_shift: -2.0, eq_filter: true, speed: 1.04,
             zoom: true, micro_rotate: true, add_border: true,
-            adversarial_enabled: true, adversarial_epsilon: 12.0, adversarial_steps: 20,
+            adversarial_enabled: true, adversarial_epsilon: 12.0, adversarial_steps: 5,
             container: 'mp4', strip_metadata: false, inject_metadata: true
         }
     };
