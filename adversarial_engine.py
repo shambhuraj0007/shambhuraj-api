@@ -139,7 +139,7 @@ class AdversarialPerturber:
     ) -> Tuple[np.ndarray, Dict]:
         """
         Apply structured adversarial noise to a batch of frames using pure NumPy.
-        Uses frequency-aware noise that targets perceptual hash features.
+        Optimized for high-speed and ultra-low memory usage on 512MB free tier servers.
         """
         B, H, W, C = frames.shape
         frames_f = frames.astype(np.float32) / 255.0
@@ -150,56 +150,20 @@ class AdversarialPerturber:
         eps = self.epsilon
         rng = np.random.RandomState(42)
 
-        # Generate structured frequency-band noise targeting hash-sensitive regions
-        # 1. Low-frequency component (affects pHash DCT coefficients)
-        low_freq_noise = np.zeros((B, H, W, C), dtype=np.float32)
-        small_h, small_w = max(H // 16, 4), max(W // 16, 4)
-        small_noise = rng.randn(B, small_h, small_w, C).astype(np.float32) * eps * 0.6
-        for b in range(B):
-            for c in range(C):
-                low_freq_noise[b, :, :, c] = cv2.resize(small_noise[b, :, :, c], (W, H),
-                                                          interpolation=cv2.INTER_LINEAR)
+        # 1. Fast Low/Mid-frequency noise (tiled small noise block to avoid resizing overhead)
+        noise_pat = rng.uniform(-eps * 0.8, eps * 0.8, (128, 128, C)).astype(np.float32)
+        reps_y = (H + 127) // 128
+        reps_x = (W + 127) // 128
+        tiled_noise = np.tile(noise_pat, (reps_y, reps_x, 1))[:H, :W, :]
 
-        # 2. Mid-frequency component (affects block dHash differences)
-        mid_h, mid_w = max(H // 4, 4), max(W // 4, 4)
-        mid_noise_small = rng.randn(B, mid_h, mid_w, C).astype(np.float32) * eps * 0.3
-        mid_freq_noise = np.zeros((B, H, W, C), dtype=np.float32)
-        for b in range(B):
-            for c in range(C):
-                mid_freq_noise[b, :, :, c] = cv2.resize(mid_noise_small[b, :, :, c], (W, H),
-                                                          interpolation=cv2.INTER_LINEAR)
+        # 2. Fast High-frequency pixel-level jitter
+        jitter = rng.uniform(-eps * 0.2, eps * 0.2, (B, H, W, C)).astype(np.float32)
 
-        # 3. Sparse pixel-level jitter (high-frequency)
-        hi_freq_noise = rng.randn(B, H, W, C).astype(np.float32) * eps * 0.1
+        # Combine noise components
+        delta = tiled_noise + jitter
+        delta = np.clip(delta, -eps, eps)
 
-        # Combine all frequency bands
-        delta = low_freq_noise + mid_freq_noise + hi_freq_noise
-
-        # Iterative refinement: adjust delta to maximize hash divergence
-        best_delta = delta.copy()
-        best_sim = 1.0
-
-        for step in range(self.steps):
-            perturbed = np.clip(frames_f + delta, 0.0, 1.0)
-            perturbed_uint8 = (perturbed * 255).clip(0, 255).astype(np.uint8)
-            current_hashes = self.hash_fn(perturbed_uint8)
-
-            # Compute cosine similarity
-            cos_sim = np.sum(current_hashes * original_hashes, axis=1)
-            cos_sim /= (np.linalg.norm(current_hashes, axis=1) * np.linalg.norm(original_hashes, axis=1) + 1e-8)
-            mean_sim = float(np.mean(cos_sim))
-
-            if mean_sim < best_sim:
-                best_sim = mean_sim
-                best_delta = delta.copy()
-
-            # Stochastic gradient-free update: shift delta in direction that reduces similarity
-            perturbation_update = rng.randn(B, H, W, C).astype(np.float32) * eps * 0.05
-            delta = delta + perturbation_update
-            delta = np.clip(delta, -eps, eps)
-
-        # Apply best delta
-        result_f = np.clip(frames_f + best_delta, 0.0, 1.0)
+        result_f = np.clip(frames_f + delta, 0.0, 1.0)
         result = (result_f * 255).clip(0, 255).astype(np.uint8)
 
         # Compute final metrics
@@ -218,8 +182,8 @@ class AdversarialPerturber:
             "psnr_db": round(float(psnr), 2),
             "mse": round(float(mse), 8),
             "epsilon": round(self.epsilon * 255, 1),
-            "steps": self.steps,
-            "best_loss": round(best_sim, 6)
+            "steps": 1,
+            "best_loss": round(final_cos_sim, 6)
         }
 
         return result, metrics
