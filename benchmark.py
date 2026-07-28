@@ -213,7 +213,25 @@ class VideoTransformationEngine:
 
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
-            raise RuntimeError(f"FFmpeg Video Error: {result.stderr[:500]}")
+            # Fallback to standard H.264 (libx264) codec
+            cmd_fallback = [
+                self.ffmpeg, "-y",
+                "-i", input_path,
+                "-an",
+                "-c:v", "libx264",
+                "-crf", str(config.get("crf", 24)),
+                "-preset", "fast",
+                "-pix_fmt", "yuv420p"
+            ]
+            if config.get("frame_rate"):
+                cmd_fallback.extend(["-r", str(config.get("frame_rate"))])
+            if vf_filters:
+                cmd_fallback.extend(["-vf", ",".join(vf_filters)])
+            cmd_fallback.append(output_path)
+
+            fallback_res = subprocess.run(cmd_fallback, capture_output=True, text=True)
+            if fallback_res.returncode != 0:
+                raise RuntimeError(f"FFmpeg Video Error: {result.stderr[:500]}")
 
     def _transform_audio_stream(self, input_path: str, output_path: str, config: Dict[str, Any]):
         af_filters = []
@@ -278,6 +296,11 @@ class VideoTransformationEngine:
         }
         audio_codec = codec_map.get(config.get("audio_codec", "aac"), "aac")
 
+        # MP4 containers require AAC or MP3 for maximum compatibility
+        container = config.get("container", "mp4").lower()
+        if container == "mp4" and audio_codec == "libopus":
+            audio_codec = "aac"
+
         cmd = [
             self.ffmpeg, "-y",
             "-i", video_path,
@@ -303,7 +326,20 @@ class VideoTransformationEngine:
 
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
-            raise RuntimeError(f"FFmpeg Remux Error: {result.stderr[:500]}")
+            # Fallback to standard AAC audio codec for universal container remuxing
+            cmd_fallback = [
+                self.ffmpeg, "-y",
+                "-i", video_path,
+                "-i", audio_path,
+                "-c:v", "copy",
+                "-c:a", "aac",
+                "-b:a", "128k",
+                "-shortest",
+                output_path
+            ]
+            fallback_res = subprocess.run(cmd_fallback, capture_output=True, text=True)
+            if fallback_res.returncode != 0:
+                raise RuntimeError(f"FFmpeg Remux Error: {result.stderr[:500]}")
 
     def mix_video_overlays(
         self,

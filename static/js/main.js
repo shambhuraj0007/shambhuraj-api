@@ -118,8 +118,8 @@ document.addEventListener('DOMContentLoaded', () => {
             container: 'mp4', strip_metadata: false, inject_metadata: true
         },
         brute_force: {
-            video_codec: 'h265', frame_rate: '24', resolution_scale: 0.75,
-            crf: 28, grain_strength: 0.04, audio_codec: 'opus', audio_bitrate: '96k',
+            video_codec: 'h264', frame_rate: '24', resolution_scale: 0.75,
+            crf: 26, grain_strength: 0.03, audio_codec: 'aac', audio_bitrate: '128k',
             pitch_shift: -2.0, eq_filter: true, speed: 1.04,
             mirror: true, zoom: true, micro_rotate: true, add_border: true,
             adversarial_enabled: true, adversarial_epsilon: 12.0, adversarial_steps: 20,
